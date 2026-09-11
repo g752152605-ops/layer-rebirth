@@ -1,0 +1,27 @@
+.venv/
+.matplotlib-cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.spec
+.license-private/
+licenses-issued/
+tmp/appdata*/
+tmp/logo-data/
+tmp/e2e-export*/
+tmp/logo-export/
+
+# Local inputs, exports, browser traces and credentials
+tmp/
+output/
+.playwright-cli/
+.env
+.env.*
+*.key
+*.pem
+!license_public_key.pem
+*.log
+# One-off reconstruction of a third-party logo, not part of the application
+/build_vector.py

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图层重生 · 本地图片可编辑化</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css?v=21" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">LR</div>
+        <div>
+          <strong>图层重生 · 海尚鸣辉</strong>
+          <span>@奇怪的外贸鸟</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="offline-state"><i></i>全程离线 · 图片不上传</span>
+        <button class="button button-secondary" id="newProjectButton" type="button">新建工程</button>
+        <button class="button button-secondary" id="recentProjectsButton" type="button">最近工程</button>
+        <button class="button button-primary" id="exportButton" type="button" disabled>导出素材包</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="left-panel panel">
+        <section class="panel-section">
+          <button class="button button-secondary" id="undoButton" type="button" disabled>撤销</button>
+          <button class="button button-secondary" id="redoButton" type="button" disabled>重做</button>
+          <small class="history-hint">修改后自动保存<br />本次编辑最多 30 步</small>
+        </section>
+        <section class="panel-section source-section">
+          <p class="section-kicker">01 / 输入</p>
+          <h1>让成品图重新可编辑</h1>
+          <p class="supporting-copy">选择任务：修改图片文字、转成矢量，或调整格式与尺寸。</p>
+          <div id="imageCards" class="image-cards"></div>
+          <div class="dropzone" id="dropzone">
+            <label class="file-picker">
+              <span class="dropzone-action" id="chooseFileText">选择图片</span>
+              <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" aria-label="选择图片" />
+            </label>
+            <span>或将 PNG、JPG、WebP 拖到这里</span>
+            <small>单张不超过 50 MB；批量最多 30 张</small>
+          </div>
+        </section>
+
+        <section class="panel-section mode-section">
+          <div class="section-title-row">
+            <div>
+              <p class="section-kicker">02 / 模式</p>
+              <h2>你想做什么？</h2>
+            </div>
+            <span class="recommendation" id="recommendation">本地处理</span>
+          </div>
+          <div class="mode-list" role="radiogroup" aria-label="处理模式">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="marketing" checked />
+              <span><b>修改图片文字</b><small>识别文字，修改文案、字体和颜色</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="logo" />
+              <span><b>图片转矢量</b><small>描摹 Logo、图标和简单插画</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="format" />
+              <span><b>格式与尺寸转换</b><small>转格式、改尺寸，支持批量</small></span>
+            </label>
+          </div>
+          <p class="export-note" id="modeHint">识别文字并保留底图，不会还原原始设计文件的全部图层。</p>
+          <div class="mode-settings" id="traceSettings" hidden>
+            <label>颜色精度 <output id="colorPrecisionOutput">6</output>
+              <input id="colorPrecision" type="range" min="1" max="8" value="6" />
+            </label>
+            <label>杂点过滤 <output id="speckleOutput">4</output>
+              <input id="speckle" type="range" min="0" max="32" value="4" />
+            </label>
+          </div>
+          <div class="batch-settings" id="batchSettings" hidden>
+            <label for="batchFormat">输出格式</label>
+            <select id="batchFormat">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="webp">WebP</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <div class="field-row">
+              <label>宽度（0 保持）<input id="batchWidth" type="number" min="0" max="10000" value="0" /></label>
+              <label>高度（0 保持）<input id="batchHeight" type="number" min="0" max="10000" value="0" /></label>
+            </div>
+            <div class="field-row">
+              <label>DPI<input id="batchDpi" type="number" min="72" max="600" value="144" /></label>
+              <label>留白背景<select id="batchBackground"><option value="transparent">透明</option><option value="white">白色</option><option value="black">黑色</option></select></label>
+            </div>
+          </div>
+          <button class="button button-process" id="processButton" type="button" disabled>
+            开始本地处理
+          </button>
+        </section>
+
+        <section class="panel-section layers-section">
+          <div class="section-title-row">
+            <div>
+              <p class="section-kicker">03 / 图层</p>
+              <h2>可编辑结构</h2>
+            </div>
+            <span id="layerCount">0 层</span>
+          </div>
+          <div class="empty-list" id="emptyLayerList">处理完成后，图层会出现在这里。</div>
+          <div class="layer-list" id="layerList"></div>
+        </section>
+      </aside>
+
+      <section class="canvas-panel" aria-label="图片对比工作区">
+        <div class="canvas-toolbar">
+          <div class="view-switch" role="group" aria-label="预览模式">
+            <button type="button" data-view="original">原图</button>
+            <button type="button" data-view="compare" class="active">对比</button>
+            <button type="button" data-view="result">结果</button>
+          </div>
+          <span class="canvas-edit-hint" id="canvasEditHint" hidden>点击文字，在右侧修改并应用 · 大图预览最长边 1600px，导出保留原尺寸</span>
+          <button class="button fit-button" type="button" id="fitCanvas">适合窗口</button>
+          <button class="save-status" id="saveStatus" type="button" aria-live="polite">未导入图片</button>
+          <div class="zoom-switch" role="group" aria-label="缩放比例">
+            <button type="button" data-zoom="1" class="active">100%</button>
+            <button type="button" data-zoom="2">200%</button>
+            <button type="button" data-zoom="4">400%</button>
+          </div>
+        </div>
+
+        <div class="stage-scroll" id="stageScroll">
+          <div class="empty-stage" id="emptyStage">
+            <p class="proof-label">EDITABLE PROOF</p>
+            <h2>从一张扁平图片开始</h2>
+            <p>拖入你准备修改的封面、海报、商品图或 Logo。</p>
+            <div class="proof-grid" aria-hidden="true">
+              <span>文字</span><span>背景</span><span>图形</span><span>交付</span>
+            </div>
+          </div>
+          <div class="compare-stage" id="compareStage" hidden>
+            <div class="image-board" id="imageBoard">
+              <img id="originalImage" alt="原始图片" />
+              <img id="resultImage" class="result-image" alt="处理结果" />
+              <div class="text-overlay-layer" id="textOverlayLayer" aria-label="画布文字编辑区"></div>
+              <div class="comparison-line" id="comparisonLine" role="slider" tabindex="0" aria-label="原图和结果对比位置" aria-valuemin="0" aria-valuemax="100" aria-valuenow="52"><span>↔</span></div>
+              <canvas id="livePreview" class="drag-object" aria-label="即时文字预览" hidden></canvas>
+              <img id="dragObject" class="drag-object" alt="移动中的文字" hidden />
+              <div id="guideX" class="alignment-guide vertical" hidden></div><div id="guideY" class="alignment-guide horizontal" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="compare-control" id="compareControl" hidden aria-hidden="true">
+          <span>原图</span>
+          <input id="compareRange" type="range" min="0" max="100" value="52" aria-label="原图和结果对比位置" />
+          <span>结果</span>
+        </div>
+      </section>
+
+      <aside class="right-panel panel">
+        <section class="panel-section edit-section">
+          <div class="section-title-row">
+            <div>
+              <p class="section-kicker">轻量修正</p>
+              <h2 id="selectedLayerTitle">未选择图层</h2>
+            </div>
+          </div>
+          <div class="empty-editor" id="emptyEditor">选择左侧图层后，可修改文字、颜色和透明度。</div>
+          <form class="layer-editor" id="layerEditor" hidden>
+            <label id="textContentLabel">文字内容
+              <textarea id="textContent" rows="3"></textarea>
+            </label>
+            <label id="fontFamilyLabel">替代字体
+              <select id="fontFamily">
+                <option>Microsoft YaHei</option>
+                <option>SimHei</option>
+                <option>Arial</option>
+                <option>Times New Roman</option>
+              </select>
+            </label>
+            <p id="appearanceLabel" class="export-note"></p>
+            <button id="repairButton" class="button button-secondary" type="button">修正残字／保护背景</button>
+            <div id="textTools">
+              <label>原字背景处理<select id="textBackground"><option value="auto">去原字＋透明新字（推荐）</option><option value="transparent">透明叠字（不覆盖底图）</option><option value="solid">自选颜色覆盖原字</option></select></label>
+              <label id="textBackgroundColorLabel" hidden>覆盖底色<input id="textBackgroundColor" type="color" value="#ffffff" /></label>
+              <p class="export-note" id="textBackgroundHint">只修补原字笔画，新文字背景透明；重叠区域优先保护邻字。</p>
+              <div class="field-row">
+                <label>字号（px）<input id="fontSize" type="number" min="1" max="1000" step="any" /></label>
+                <label>适应文本框<select id="textFit"><option value="shrink">过长等比缩小</option><option value="actual">使用指定字号</option></select></label>
+              </div>
+              <div class="field-row">
+                <label>字重<select id="fontWeight"><option value="normal">常规</option><option value="bold">粗体</option></select></label>
+                <label>字形<select id="fontStyle"><option value="normal">正常</option><option value="italic">斜体</option></select></label>
+              </div>
+              <details class="advanced-type"><summary>高级排版</summary>
+              <div class="field-row text-checks">
+                <label><input id="textUnderline" type="checkbox" />下划线</label>
+                <label><input id="textStrike" type="checkbox" />删除线</label>
+              </div>
+              <div class="field-row">
+                <label>字间距（px）<input id="letterSpacing" type="number" min="0" max="100" step="0.5" /></label>
+                <label>行距倍数<input id="lineHeight" type="number" min="0.5" max="4" step="0.1" /></label>
+              </div>
+              <div class="field-row">
+                <label>对齐<select id="textAlign"><option value="left">左对齐</option><option value="center">居中</option><option value="right">右对齐</option></select></label>
+                <label>旋转角度<input id="textRotation" type="number" min="-180" max="180" step="1" /></label>
+              </div>
+              <div class="field-row">
+                <label>描边宽度（px）<input id="strokeWidth" type="number" min="0" max="20" step="0.5" /></label>
+                <label>描边颜色<input id="strokeColor" type="color" value="#000000" /></label>
+              </div>
+              <details><summary>文字位置与文本框（px）</summary>
+                <div class="field-row"><label>X<input id="textX" type="number" step="1" /></label><label>Y<input id="textY" type="number" step="1" /></label></div>
+                <div class="field-row"><label>宽度<input id="textWidth" type="number" min="1" max="10000" /></label><label>高度<input id="textHeight" type="number" min="1" max="10000" /></label></div>
+              </details>
+              </details>
+              <p class="export-note">右侧输入框回车分行，停止输入后自动保存；也可点击下方立即保存。指定字号可能超出文本框；旋转后的文字请检查位置。原字修补区域保持原位置。</p>
+            </div>
+            <div class="field-row">
+              <label id="layerColorLabel">颜色<input id="layerColor" type="color" value="#161616" /></label>
+              <label>透明度<input id="layerOpacity" type="number" min="0" max="100" value="100" /></label>
+            </div>
+            <button class="restore-original" id="restoreOriginalButton" type="button" hidden>恢复原稿文字</button>
+            <div class="layer-actions">
+              <button type="button" id="moveUpButton">上移</button>
+              <button type="button" id="moveDownButton">下移</button>
+              <button type="button" class="danger" id="deleteLayerButton">删除图层</button>
+            </div>
+            <p class="hint">修改即时预览，停止输入后自动保存。</p>
+            <button class="button button-secondary full-width" id="applyChangesButton" type="button">立即保存</button>
+          </form>
+        </section>
+
+        <section class="panel-section quality-section">
+          <p class="section-kicker">待检查项</p>
+          <div class="quality-head" hidden>
+            <div>
+              <strong id="qualityScore">--</strong><span>/100</span>
+            </div>
+            <span class="verdict neutral" id="qualityVerdict">等待处理</span>
+          </div>
+          <div class="metric-grid" id="metricGrid" hidden>
+            <div><span>文字</span><b>--</b></div>
+            <div><span>图层</span><b>--</b></div>
+            <div><span>颜色</span><b>--</b></div>
+            <div><span>节点</span><b>--</b></div>
+          </div>
+          <div class="warning-list" id="warningList">
+            <p>处理后列出基础检查结果；交付前仍需核对字体、细节和修补区域。</p>
+          </div>
+        </section>
+
+        <section class="panel-section export-section">
+          <details><summary>导出内容与格式</summary>
+          <div class="format-checks">
+            <label><input type="checkbox" value="svg" checked />SVG 双版本</label>
+            <label><input type="checkbox" value="pdf" checked />印刷 PDF</label>
+            <label><input type="checkbox" value="eps" checked />兼容 EPS</label>
+            <label><input type="checkbox" value="png" checked />预览 PNG</label>
+            <label><input type="checkbox" value="report" checked />质量报告</label>
+            <label><input type="checkbox" value="project" checked />工程文件</label>
+          </div>
+          <p class="export-note">SVG/EPS 可在 Illustrator 中打开，再另存为原生 AI。评分仅为基础检查参考；请核对文字、字体和修补区域。PDF 未进行 CMYK／印前校验。</p></details>
+        </section>
+      </aside>
+    </main>
+
+    <dialog id="repairDialog" class="workspace-dialog" aria-labelledby="repairTitle">
+      <header class="dialog-header"><div><span class="dialog-eyebrow">文字修正</span><h2 id="repairTitle">局部修补</h2></div><button id="closeRepairTop" class="dialog-close" type="button" aria-label="关闭局部修补">×</button></header>
+      <div class="dialog-body"><p class="dialog-description">补清残字会移除笔画；保护背景阻止清除。每笔松开后保存，可撤销。</p>
+      <div class="repair-toolbar">
+        <label><input type="radio" name="brush" value="erase" checked />补清残字</label>
+        <label><input type="radio" name="brush" value="protect" />保护背景</label>
+        <label>笔刷半径 <input id="brushRadius" type="range" min="1" max="32" value="5" /></label>
+        <label><input id="showMask" type="checkbox" checked />显示遮罩</label>
+        <label><input id="repairBaseOnly" type="checkbox" checked />只看修补底图</label>
+      </div>
+      <div class="repair-canvas-wrap"><canvas id="repairCanvas" aria-label="原字区域修正画布"></canvas></div>
+      <p id="repairStatus" aria-live="polite"></p>
+      </div><footer class="dialog-footer"><div class="repair-toolbar"><button id="undoRepair" type="button" class="button">撤销上一步</button><button id="resetRepair" type="button" class="button">重置修正画笔</button><button id="closeRepair" type="button" class="button button-primary">完成</button></div></footer>
+    </dialog>
+    <dialog id="exportDirectoryDialog" class="workspace-dialog" aria-labelledby="exportDirectoryTitle">
+      <header class="dialog-header"><div><span class="dialog-eyebrow">本地交付</span><h2 id="exportDirectoryTitle">选择导出位置</h2></div><button id="closeExportTop" class="dialog-close" type="button" aria-label="关闭导出位置">×</button></header>
+      <form id="exportDirectoryForm">
+        <div class="dialog-body">
+        <label for="exportDirectoryPath">保存文件夹</label>
+        <input id="exportDirectoryPath" type="text" required placeholder="填写完整文件夹路径" />
+        <button id="browseExportDirectory" class="button button-secondary" type="button">选择文件夹…</button>
+        <p class="export-note">将在此文件夹中创建独立子文件夹保存结果，并记住本次位置。浏览器模式可直接填写完整路径。</p>
+        </div><footer class="dialog-footer">
+          <button id="cancelExportDirectory" class="button button-secondary" type="button">取消</button>
+          <button class="button button-primary" type="submit">导出到此处</button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="recentProjectsDialog" class="workspace-dialog" aria-labelledby="recentProjectsTitle">
+      <header class="dialog-header"><div><span class="dialog-eyebrow">继续创作</span><h2 id="recentProjectsTitle">最近工程 <span id="recentProjectCount" class="dialog-count"></span></h2></div><form method="dialog"><button class="dialog-close" aria-label="关闭最近工程" autofocus>×</button></form></header>
+      <div class="dialog-body">
+        <p class="dialog-description">选择一份工程，从上次保存的位置继续。</p>
+        <div id="recentProjectsList"></div>
+      </div>
+      <footer class="dialog-footer dialog-footnote">仅保存在本机 · 显示最近 30 份工程 · 重开后撤销历史重新开始</footer>
+    </dialog>
+    <div class="busy-overlay" id="busyOverlay" hidden aria-live="polite">
+      <div class="busy-box"><span></span><b id="busyText">正在本地分析图片…</b><small id="busyProgress">后台处理中，可以取消。</small><button class="button button-secondary" type="button" id="cancelTaskButton">取消任务</button></div>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js?v=19"></script>
+    <script src="/workbench.js?v=19"></script>
+    <script src="/live-preview.js?v=19"></script>
+  </body>
+</html>
