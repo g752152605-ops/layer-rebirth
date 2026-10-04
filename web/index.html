@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>图层重生 · 本地图片可编辑化</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/styles.css?v=21" />
+    <link rel="stylesheet" href="/styles.css?v=23" />
   </head>
   <body>
     <header class="topbar">
@@ -66,6 +66,10 @@
             <label class="mode-option">
               <input type="radio" name="mode" value="format" />
               <span><b>格式与尺寸转换</b><small>转格式、改尺寸，支持批量</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="cleanup" />
+              <span><b>去除水印／杂物</b><small>涂抹或框选，修补指定区域</small></span>
             </label>
           </div>
           <p class="export-note" id="modeHint">识别文字并保留底图，不会还原原始设计文件的全部图层。</p>
@@ -165,6 +169,7 @@
               <h2 id="selectedLayerTitle">未选择图层</h2>
             </div>
           </div>
+            <button id="openCleanup" class="button button-primary full-width" type="button" hidden>涂抹／框选并修补</button>
           <div class="empty-editor" id="emptyEditor">选择左侧图层后，可修改文字、颜色和透明度。</div>
           <form class="layer-editor" id="layerEditor" hidden>
             <label id="textContentLabel">文字内容
@@ -265,6 +270,24 @@
       </aside>
     </main>
 
+    <dialog id="cleanupDialog" class="workspace-dialog" aria-labelledby="cleanupTitle">
+      <header class="dialog-header"><div><span class="dialog-eyebrow">本地图片修补</span><h2 id="cleanupTitle">去除水印／杂物</h2></div><button id="closeCleanupTop" class="dialog-close" type="button" aria-label="关闭水印修补">×</button></header>
+      <div class="dialog-body">
+        <p class="dialog-description">涂满要去除的内容，或框选小区域，再点击修补。保护画笔优先保留原图。复杂纹理可能模糊，请对比检查。</p>
+        <div class="repair-toolbar">
+          <label><input type="radio" name="cleanupBrush" value="erase" checked />清除画笔</label>
+          <label><input type="radio" name="cleanupBrush" value="rect" />框选清除</label>
+          <label><input type="radio" name="cleanupBrush" value="protect" />保护画笔</label>
+          <label>笔刷 <input id="cleanupRadius" type="range" min="1" max="128" value="12" /><output id="cleanupRadiusValue">12 px</output></label>
+          <label>查看 <select id="cleanupZoom"><option value="fit">适合窗口</option><option value="1">100%</option><option value="2">200%</option></select></label>
+          <label><input id="cleanupMask" type="checkbox" checked />显示选区</label>
+          <label><input id="cleanupOriginal" type="checkbox" />查看原图</label>
+        </div>
+        <div class="cleanup-canvas-wrap"><canvas id="cleanupCanvas" aria-label="水印与杂物选区画布"></canvas></div>
+        <p id="cleanupStatus" role="status">红色清除，绿色保护。</p>
+      </div>
+      <footer class="dialog-footer"><button id="undoCleanupSelection" class="button" type="button">撤销选区</button><button id="resetCleanupSelection" class="button" type="button">清空选区</button><button id="undoCleanupResult" class="button" type="button">撤销修补</button><button id="applyCleanup" class="button button-primary" type="button">修补选区</button><button id="closeCleanup" class="button" type="button">完成</button></footer>
+    </dialog>
     <dialog id="repairDialog" class="workspace-dialog" aria-labelledby="repairTitle">
       <header class="dialog-header"><div><span class="dialog-eyebrow">文字修正</span><h2 id="repairTitle">局部修补</h2></div><button id="closeRepairTop" class="dialog-close" type="button" aria-label="关闭局部修补">×</button></header>
       <div class="dialog-body"><p class="dialog-description">补清残字会移除笔画；保护背景阻止清除。每笔松开后保存，可撤销。</p>
@@ -305,8 +328,10 @@
       <div class="busy-box"><span></span><b id="busyText">正在本地分析图片…</b><small id="busyProgress">后台处理中，可以取消。</small><button class="button button-secondary" type="button" id="cancelTaskButton">取消任务</button></div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=19"></script>
-    <script src="/workbench.js?v=19"></script>
-    <script src="/live-preview.js?v=19"></script>
+    <script src="/app.js?v=23"></script>
+    <script src="/workbench.js?v=23"></script>
+    <script src="/cleanup.js?v=23"></script>
+    <script src="/live-preview.js?v=23"></script>
   </body>
 </html>
+

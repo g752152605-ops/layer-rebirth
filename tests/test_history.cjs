@@ -55,10 +55,10 @@ test('task selection controls settings and never switches tasks when multiple fi
   assert.equal(app.run('els.batchSettings.hidden'), true);
 });
 
-test('task picker exposes exactly three explicit tasks with text editing as default', () => {
+test('task picker exposes four explicit tasks with text editing as default', () => {
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
   const modes = [...html.matchAll(/name="mode" value="([^"]+)"([^>]*)/g)];
-  assert.deepEqual(modes.map(match => match[1]), ['marketing', 'logo', 'format']);
+  assert.deepEqual(modes.map(match => match[1]), ['marketing', 'logo', 'format', 'cleanup']);
   assert.match(modes[0][2], /checked/);
 });
 

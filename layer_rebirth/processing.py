@@ -80,7 +80,7 @@ class ImageProcessor:
             else "marketing"
         )
         mode = recommended if requested_mode == "auto" else requested_mode
-        if mode not in {"marketing", "logo", "format"}:
+        if mode not in {"marketing", "logo", "format", "cleanup"}:
             raise ValueError("未知处理模式")
 
         if mode == "logo":
@@ -89,6 +89,10 @@ class ImageProcessor:
             layers, report = self._process_marketing(source_path, image, analysis, settings)
         else:
             layers, report = self._process_format(image, analysis)
+            if mode == "cleanup":
+                layers[0].name = "水印／杂物修补底图"
+                layers[0].style["cleanup_strokes"] = []
+                report.warnings = ["请手动选中水印或杂物；复杂纹理修补可能模糊，请对比检查。"]
 
         project = ProjectDocument(
             id=project_id,

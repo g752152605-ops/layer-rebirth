@@ -6,7 +6,7 @@ import math
 
 
 LayerKind = Literal["text", "vector", "raster"]
-Mode = Literal["marketing", "logo", "format"]
+Mode = Literal["marketing", "logo", "format", "cleanup"]
 
 
 @dataclass
@@ -115,9 +115,9 @@ class ProjectDocument:
         )
         mode = value.get("mode", "marketing")
         recommended = value.get("recommended_mode", mode)
-        if mode not in {"marketing", "logo", "format"}:
+        if mode not in {"marketing", "logo", "format", "cleanup"}:
             raise ValueError("处理模式无效")
-        if recommended not in {"marketing", "logo", "format"}:
+        if recommended not in {"marketing", "logo", "format", "cleanup"}:
             recommended = mode
         return cls(
             id=str(value["id"]),

@@ -103,6 +103,10 @@ const workbench = {
   },
   renderIssues() {
     els.warningList.replaceChildren();
+    if (state.current.project.mode === "cleanup") {
+      els.warningList.textContent = "请对比检查修补边缘与背景纹理；复杂背景可能模糊，必要时缩小选区或保护重要细节。";
+      return;
+    }
     state.current.project.layers.filter(l => l.kind === "text" && (l.style.repair_warning || l.confidence < .88)).forEach(layer => {
       const button = document.createElement("button"); button.type = "button"; button.className = "issue-item";
       button.textContent = `${layer.content}：${layer.style.repair_warning || "识别置信度偏低，请核对"}`;

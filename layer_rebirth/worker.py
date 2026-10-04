@@ -79,7 +79,7 @@ class ProcessingWorker:
     def run(self, operation: str, *arguments):
         if self._closed:
             raise ValueError("处理服务已关闭")
-        if operation not in {"process", "update", "reopen", "export", "batch", "repair", "drag_assets"}:
+        if operation not in {"process", "update", "reopen", "export", "batch", "repair", "drag_assets", "cleanup"}:
             raise ValueError("未知后台任务")
         if not self._gate.acquire(blocking=False):
             raise TaskBusy("已有任务正在处理，请等待或先取消当前任务。")

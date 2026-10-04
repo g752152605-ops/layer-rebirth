@@ -177,6 +177,7 @@ async function processFiles() {
     state.selectedLayerId = result.project.layers.find((layer) => layer.kind === "text")?.id || result.project.layers[0]?.id;
     renderProject();
     showToast("本地处理完成，可以检查图层并导出。", false);
+    if (result.project.mode === "cleanup") { setBusy(false); await cleanupTool.open(); }
   } catch (error) {
     showToast(error.message, true);
   } finally {
@@ -205,6 +206,7 @@ function renderProject({ preserveEditor = false } = {}) {
   if (!preserveEditor) renderEditor();
   setView(state.view);
   if (typeof workbench !== "undefined") workbench.render();
+  if (typeof cleanupTool !== "undefined") cleanupTool.renderAction();
 }
 
 function renderCanvasTextTargets() {
@@ -513,6 +515,8 @@ async function showRecentProjects() {
         try {
           const opened = await apiGet(`/api/projects/${project.id}`);
           state.current = opened;
+          const modeInput = $$('input[name="mode"]').find(input => input.value === opened.project.mode);
+          if (modeInput) { modeInput.checked = true; updateModeUI(); }
           state.selectedLayerId = opened.project.layers.find(layer => layer.kind === "text")?.id || opened.project.layers[0]?.id;
           resetHistory();
           renderProject();
@@ -651,11 +655,12 @@ function updateModeUI() {
   els.batchSettings.hidden = mode !== "format";
   els.traceSettings.hidden = mode !== "logo";
   els.fileInput.multiple = mode === "format";
-  els.process.textContent = { marketing: "识别文字并开始编辑", logo: "开始转矢量", format: "选择位置并转换" }[mode];
+  els.process.textContent = { marketing: "识别文字并开始编辑", logo: "开始转矢量", format: "选择位置并转换", cleanup: "打开图片并选区" }[mode];
   $("#modeHint").textContent = {
     marketing: "识别文字并保留底图，不会还原原始设计文件的全部图层。",
     logo: "适合 Logo、图标和简单插画；复杂照片、渐变及细小文字可能失真。",
     format: "可处理单张或多张图片；只转换格式与尺寸，不识别文字或生成矢量。",
+    cleanup: "手动涂抹或框选水印、日期和杂物，本地修补并保留原图。",
   }[mode];
   if (mode !== "format" && state.files.length > 1) {
     state.files = state.files.slice(0, 1);
@@ -716,7 +721,7 @@ function showToast(message, isError = false) {
 }
 
 function modeLabel(mode) {
-  return { marketing: "修改图片文字", logo: "图片转矢量", format: "格式与尺寸转换" }[mode] || mode;
+  return { marketing: "修改图片文字", logo: "图片转矢量", format: "格式与尺寸转换", cleanup: "去除水印／杂物" }[mode] || mode;
 }
 
 els.fileInput.addEventListener("change", (event) => {

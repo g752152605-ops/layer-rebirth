@@ -92,6 +92,12 @@ class LayerRebirthService:
         project.quality.metrics["layer_count"] = len(project.layers)
         project.quality.metrics["text_count"] = sum(layer.kind == "text" for layer in project.layers)
         with self.lock:
+            if project.mode == "cleanup":
+                from .cleanup import cleanup_asset
+                layer = project.layers[0] if len(project.layers) == 1 else None
+                if layer is None or layer.kind != "raster":
+                    raise ValueError("修补工程的底图结构无效")
+                layer.asset = cleanup_asset(project_dir, layer.style.get("cleanup_strokes", []))
             self.processor.upgrade_text_repairs(project)
             previous = {l.id:l for l in saved.layers}
             changed_masks = [l for l in project.layers if l.kind == "text" and l.id in previous
@@ -107,6 +113,15 @@ class LayerRebirthService:
             project.revision = saved.revision + 1
             self.storage.save(project)
         return self._project_response(project)
+
+    def cleanup(self, project_id: str, payload: dict) -> dict:
+        project = self.storage.load(project_id)
+        if project.mode != "cleanup":
+            raise ValueError("请从去除水印／杂物入口导入图片")
+        if payload.get("base_revision") != project.revision:
+            raise ValueError("REVISION_CONFLICT: 工程已更新，请重新打开后再修补。")
+        project.layers[0].style["cleanup_strokes"] = payload.get("strokes", [])
+        return self.update(project_id, {"project":project.to_dict(), "base_revision":project.revision})
 
     def repair(self, project_id: str, layer_id: str, payload: dict) -> dict:
         from .text_repair import prepare_text_repair
@@ -327,7 +342,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 update_match = re.fullmatch(r"/api/projects/([0-9a-f-]+)", path)
                 export_match = re.fullmatch(r"/api/projects/([0-9a-f-]+)/export", path)
                 text_match = re.fullmatch(r"/api/projects/([0-9a-f-]+)/text/([^/]+)/(repair|drag-assets)", path)
-                if text_match:
+                cleanup_match = re.fullmatch(r"/api/projects/([0-9a-f-]+)/cleanup", path)
+                if cleanup_match:
+                    result = self.server.worker.run("cleanup", cleanup_match.group(1), payload)
+                elif text_match:
                     operation = "repair" if text_match.group(3) == "repair" else "drag_assets"
                     result = self.server.worker.run(operation,text_match.group(1),unquote(text_match.group(2)),payload)
                 elif export_match:
